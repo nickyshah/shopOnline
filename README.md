@@ -2,7 +2,25 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Supabase CLI running locally (Docker) with the included `supabase/config.toml`
+- Stripe CLI installed and logged in
+- Node 18+
+
+Create `.env.local` with:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+STRIPE_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+Start the development server:
 
 ```bash
 npm run dev
@@ -29,8 +47,26 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+### Stripe webhook (local)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+In a separate terminal, forward webhooks:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+stripe listen --forward-to localhost:3000/api/stripe/webhook
+```
+
+Use the printed signing secret as `STRIPE_WEBHOOK_SECRET`.
+
+### Supabase local
+
+Start Supabase services:
+
+```
+supabase start
+```
+
+Apply migrations (done automatically on start). To promote a user to admin, run in SQL editor:
+
+```
+update public.profiles set role = 'admin' where id = '<your-auth-user-id>';
+```
