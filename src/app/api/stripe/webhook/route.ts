@@ -58,8 +58,15 @@ export async function POST(req: Request) {
 		if (items && items.length > 0) {
 			const amountCents = items.reduce((sum: number, it: any) => sum + it.quantity * it.product.price_cents, 0);
 
+			console.log("[Webhook] Creating order:", {
+				userId: userId || "guest",
+				customerEmail: customerEmail || "none",
+				amountCents,
+				itemsCount: items.length,
+			});
+
 			// Create order (use service role to bypass RLS)
-			const { data: order } = await supabase
+			const { data: order, error: orderError } = await supabase
 				.from("orders")
 				.insert({
 					user_id: userId || null,
@@ -71,8 +78,15 @@ export async function POST(req: Request) {
 				.select("id")
 				.single();
 
+			if (orderError) {
+				console.error("[Webhook] Error creating order:", orderError);
+				return NextResponse.json({ received: true, error: orderError.message }, { status: 500 });
+			}
+
 			if (order) {
-				await supabase.from("order_items").insert(
+				console.log("[Webhook] Order created successfully:", order.id);
+
+				const { error: itemsError } = await supabase.from("order_items").insert(
 					items.map((it: any) => ({
 						order_id: order.id,
 						product_id: it.product.id,
@@ -81,9 +95,32 @@ export async function POST(req: Request) {
 					}))
 				);
 
-				// Clear cart
-				await supabase.from("cart_items").delete().eq("cart_id", cartId);
+				if (itemsError) {
+					console.error("[Webhook] Error creating order items:", itemsError);
+				} else {
+					console.log("[Webhook] Order items created successfully");
+				}
+
+				// Clear cart items (for both authenticated users and guests)
+				const { error: cartItemsError } = await supabase
+					.from("cart_items")
+					.delete()
+					.eq("cart_id", cartId);
+				
+				if (cartItemsError) {
+					console.error("[Webhook] Error clearing cart items:", cartItemsError);
+				} else {
+					console.log("[Webhook] Cart items cleared successfully for cart:", cartId);
+				}
+
+				// Optionally delete the cart itself (optional, but keeps DB clean)
+				// Note: We keep the cart record as it might be useful for history
+				// The cart can be reused for future shopping sessions
+
+				console.log("[Webhook] Order processing completed for order:", order.id);
 			}
+		} else {
+			console.warn("[Webhook] No items found in cart, skipping order creation");
 		}
 	}
 

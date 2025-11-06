@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import PrivacyPolicyButton from "./PrivacyPolicyButton";
+import TermsOfServiceButton from "./TermsOfServiceButton";
 
 export default async function Footer() {
 	const supabase = await getSupabaseServerClient();
@@ -115,12 +117,8 @@ export default async function Footer() {
 						© {new Date().getFullYear()} RawNode. All rights reserved.
 					</p>
 					<div className="flex gap-6">
-						<a href="#" className="text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-							Privacy Policy
-						</a>
-						<a href="#" className="text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-							Terms of Service
-						</a>
+						<PrivacyPolicyButton />
+						<TermsOfServiceButton />
 					</div>
 				</div>
 			</div>

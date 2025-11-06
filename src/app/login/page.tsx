@@ -1,18 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 
 export default function LoginPage() {
-	const supabase = getSupabaseBrowserClient();
+	const supabase = useMemo(() => getSupabaseBrowserClient(), []);
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [mode, setMode] = useState<"signin" | "signup">("signin");
 	const [loading, setLoading] = useState(false);
+
+	// Check Supabase connection on mount
+	useEffect(() => {
+		const checkConnection = async () => {
+			const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+			if (!supabaseUrl) {
+				console.error("[Login] Missing NEXT_PUBLIC_SUPABASE_URL environment variable");
+				return;
+			}
+
+			try {
+				// Try to fetch the Supabase health endpoint
+				const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+					method: "HEAD",
+					headers: {
+						apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+					},
+				});
+				if (!response.ok && response.status !== 404) {
+					console.warn("[Login] Supabase connection check failed:", response.status);
+				}
+			} catch (error) {
+				console.error("[Login] Cannot reach Supabase. Ensure:", {
+					error: error instanceof Error ? error.message : "Unknown error",
+					checklist: [
+						"Docker is running",
+						"Supabase is started (run 'supabase start')",
+						"Environment variables are set correctly",
+						`URL is correct: ${supabaseUrl}`,
+					],
+				});
+			}
+		};
+
+		checkConnection();
+	}, []);
 
 	async function onSubmit(e: React.FormEvent) {
 		e.preventDefault();
@@ -23,7 +60,25 @@ export default function LoginPage() {
 					email,
 					password,
 				});
-				if (err) throw err;
+				if (err) {
+					// Provide more helpful error messages
+					if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
+						throw new Error(
+							"Cannot connect to Supabase. Please ensure:\n" +
+							"1. Supabase is running locally (run 'supabase start')\n" +
+							"2. Your .env.local has the correct NEXT_PUBLIC_SUPABASE_URL (should be http://localhost:54331)\n" +
+							"3. Your environment variables are set correctly"
+						);
+					}
+					if (err.message.includes("Invalid login credentials") || err.message.includes("Invalid credentials")) {
+						throw new Error(
+							"Invalid email or password.\n" +
+							"If you just reset the database, you need to sign up again.\n" +
+							"Click 'Sign up' to create a new account."
+						);
+					}
+					throw err;
+				}
 				if (!data.user) {
 					throw new Error("Sign in failed - no user returned");
 				}
@@ -33,18 +88,61 @@ export default function LoginPage() {
 					email,
 					password,
 				});
-				if (err) throw err;
+				if (err) {
+					// Provide more helpful error messages
+					if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
+						throw new Error(
+							"Cannot connect to Supabase. Please ensure:\n" +
+							"1. Supabase is running locally (run 'supabase start')\n" +
+							"2. Your .env.local has the correct NEXT_PUBLIC_SUPABASE_URL (should be http://localhost:54331)\n" +
+							"3. Your environment variables are set correctly"
+						);
+					}
+					throw err;
+				}
 				if (!data.user) {
 					throw new Error("Sign up failed - no user returned");
 				}
-				toast.success("Account created successfully!");
+				
+				// If signing up as admin@rawnode.com, set admin role
+				if (email.toLowerCase() === "admin@rawnode.com") {
+					try {
+						const response = await fetch("/api/profiles/ensure", {
+							method: "POST",
+						});
+						if (response.ok) {
+							const result = await response.json();
+							if (result.role === "admin") {
+								toast.success("Admin account created successfully!");
+							} else {
+								toast.success("Account created! Setting admin role...");
+								// Try to set admin role via API
+								setTimeout(async () => {
+									await fetch("/api/admin/set-admin", { method: "POST" });
+								}, 500);
+							}
+						} else {
+							toast.success("Account created successfully!");
+						}
+					} catch {
+						toast.success("Account created successfully!");
+					}
+				} else {
+					toast.success("Account created successfully!");
+				}
 			}
+
 			// Wait a moment for session to be established, then redirect
-			await new Promise(resolve => setTimeout(resolve, 100));
-			router.push("/");
+			await new Promise(resolve => setTimeout(resolve, 150));
+			const redirectParam = searchParams.get("redirect");
+			const target = redirectParam || (email.toLowerCase() === "admin@rawnode.com" ? "/admin" : "/");
+			router.push(target);
 			router.refresh();
 		} catch (err: any) {
-			toast.error(err?.message ?? "Authentication failed");
+			// Show error message - handle multiline messages from our custom errors
+			const errorMessage = err?.message ?? "Authentication failed";
+			toast.error(errorMessage);
+			console.error("Auth error:", err);
 		} finally {
 			setLoading(false);
 		}

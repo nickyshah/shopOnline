@@ -1,12 +1,15 @@
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseServiceClient } from "@/lib/supabase/service";
 import AdminProductForm from "@/app/components/AdminProductForm";
 import ProductToggleButton from "@/app/components/ProductToggleButton";
+import DeleteProductButton from "@/app/components/DeleteProductButton";
+import Link from "next/link";
 
 export default async function AdminProductsPage() {
-	const supabase = await getSupabaseServerClient();
+	// Use service client to see all products (including inactive ones)
+	const supabase = getSupabaseServiceClient();
 	const { data: products } = await supabase
 		.from("products")
-		.select("id, name, price_cents, active, category:categories(name)")
+		.select("id, name, description, price_cents, active, category:categories(name)")
 		.order("created_at", { ascending: false });
 
 	const { data: categories } = await supabase
@@ -40,8 +43,15 @@ export default async function AdminProductsPage() {
 							>
 								<div className="flex items-center justify-between">
 									<div className="flex-1">
-										<div className="font-bold text-lg text-gray-900 dark:text-white mb-1">{p.name}</div>
-										<div className="text-sm text-gray-600 dark:text-gray-400">
+										<div className="flex items-center gap-3 mb-1">
+											<div className="font-bold text-lg text-gray-900 dark:text-white">{p.name}</div>
+											{!p.active && (
+												<span className="px-2 py-1 bg-red-500/20 text-red-700 dark:text-red-400 rounded text-xs font-medium">
+													Inactive
+												</span>
+											)}
+										</div>
+										<div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
 											<span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
 												${(p.price_cents / 100).toFixed(2)}
 											</span>
@@ -51,8 +61,22 @@ export default async function AdminProductsPage() {
 												</span>
 											)}
 										</div>
+										{p.description && (
+											<div className="text-sm text-gray-500 dark:text-gray-500 line-clamp-1">
+												{p.description}
+											</div>
+										)}
 									</div>
-									<ProductToggleButton productId={p.id} isActive={p.active} />
+									<div className="flex items-center gap-3">
+										<ProductToggleButton productId={p.id} isActive={p.active} />
+										<Link
+											href={`/admin/products/${p.id}/edit`}
+											className="px-4 py-2 bg-white/20 dark:bg-white/10 backdrop-blur-sm rounded-xl border border-white/30 dark:border-white/20 text-gray-900 dark:text-white font-semibold hover:bg-white/30 dark:hover:bg-white/15 transition-all"
+										>
+											Edit
+										</Link>
+										<DeleteProductButton productId={p.id} />
+									</div>
 								</div>
 							</div>
 						))

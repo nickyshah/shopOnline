@@ -18,12 +18,13 @@ export default function ProductToggleButton({ productId, isActive }: ProductTogg
 		setLoading(true);
 
 		try {
-			const response = await fetch(`/admin/products/${productId}/toggle`, {
-				method: "POST",
+			const response = await fetch(`/api/admin/products/${productId}/toggle`, {
+				method: "PATCH",
 			});
 
 			if (!response.ok) {
-				throw new Error("Failed to update product");
+				const error = await response.json();
+				throw new Error(error.error || "Failed to update product");
 			}
 
 			toast.success(`Product ${isActive ? "deactivated" : "activated"} successfully!`);

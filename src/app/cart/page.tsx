@@ -1,5 +1,6 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getCartSessionId } from "@/lib/cart";
+import CheckoutButton from "../components/CheckoutButton";
 
 export default async function CartPage() {
 	const supabase = await getSupabaseServerClient();
@@ -114,14 +115,7 @@ export default async function CartPage() {
 									${(totalCents / 100).toFixed(2)}
 								</div>
 							</div>
-							<form action="/api/stripe/checkout" method="post">
-								<button
-									type="submit"
-									className="w-full px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl text-white font-semibold text-lg shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:from-indigo-700 hover:to-purple-700"
-								>
-									Proceed to Checkout
-								</button>
-							</form>
+							<CheckoutButton />
 						</div>
 					</>
 				)}

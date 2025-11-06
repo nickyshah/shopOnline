@@ -11,7 +11,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 Create `.env.local` with:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54331
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
@@ -19,6 +19,18 @@ STRIPE_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
+
+**Note:** The Supabase URL port is `54331` (not 54321). After running `supabase start`, you can get the actual keys by running:
+```bash
+supabase status
+```
+
+This will show you:
+- **API URL**: Use for `NEXT_PUBLIC_SUPABASE_URL`
+- **Publishable key**: Use for `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- **Secret key**: Use for `SUPABASE_SERVICE_ROLE_KEY` (this is the service role key for local development)
+
+**Important:** The service role key is required for admin operations. Copy the "Secret key" from `supabase status` and add it to `.env.local` as `SUPABASE_SERVICE_ROLE_KEY`.
 
 Start the development server:
 
@@ -47,15 +59,27 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-### Stripe webhook (local)
+### Stripe Setup
 
-In a separate terminal, forward webhooks:
+1. **Get your test API keys:**
+   - Run the helper script: `./get-stripe-keys.sh`
+   - Or visit: https://dashboard.stripe.com/test/apikeys
+   - Make sure you're in **Test mode** (toggle in top right)
+   - Copy your **Secret key** (starts with `sk_test_`) and **Publishable key** (starts with `pk_test_`)
 
-```
-stripe listen --forward-to localhost:3000/api/stripe/webhook
-```
+2. **Set up webhooks (local development):**
+   In a separate terminal, forward webhooks:
+   ```
+   stripe listen --forward-to localhost:3000/api/stripe/webhook
+   ```
+   Copy the printed `webhook signing secret` (starts with `whsec_`) and add it to `.env.local` as `STRIPE_WEBHOOK_SECRET`.
 
-Use the printed signing secret as `STRIPE_WEBHOOK_SECRET`.
+3. **Add to `.env.local`:**
+   ```
+   STRIPE_SECRET_KEY=sk_test_...
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   ```
 
 ### Supabase local
 

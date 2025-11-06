@@ -42,7 +42,7 @@ export default function RootLayout({
 }
 
 async function Header() {
-  const { getSessionUser, signOutAction } = await import("./actions");
+  const { getSessionUser, getCartItemCount } = await import("./actions");
   const { getSupabaseServerClient } = await import("@/lib/supabase/server");
   const user = await getSessionUser();
   let userRole: string | null = null;
@@ -55,6 +55,7 @@ async function Header() {
       .single();
     userRole = profile?.role || null;
   }
+  const cartItemCount = await getCartItemCount();
   return (
     <header className="sticky top-0 z-50 w-full">
       {/* Glass Header with backdrop */}
@@ -67,7 +68,7 @@ async function Header() {
           >
             RawNode
           </Link>
-          <NavLinks user={user} userRole={userRole} />
+          <NavLinks user={user} userRole={userRole} cartItemCount={cartItemCount} />
         </div>
       </div>
     </header>

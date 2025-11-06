@@ -7,10 +7,16 @@ export default async function OrdersPage() {
 	const { data: auth } = await supabase.auth.getUser();
 	if (!auth.user) redirect("/login");
 
-	const { data: orders } = await supabase
+	// Explicitly filter by user_id (RLS should also enforce this, but being explicit helps)
+	const { data: orders, error } = await supabase
 		.from("orders")
 		.select("id, status, amount_cents, created_at")
+		.eq("user_id", auth.user.id)
 		.order("created_at", { ascending: false });
+
+	if (error) {
+		console.error("[Orders] Error fetching orders:", error);
+	}
 
 	return (
 		<div className="min-h-screen">
