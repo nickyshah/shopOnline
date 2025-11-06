@@ -16,7 +16,7 @@ export default function LabelPage() {
 				<div className="space-y-2">
 					<div>
 						<div className="font-semibold">From</div>
-						<div>Ecommerce Store</div>
+						<div>RawNode Store</div>
 						<div>123 Commerce St</div>
 						<div>San Francisco, CA 94105</div>
 					</div>

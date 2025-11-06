@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +8,7 @@ export async function POST(req: Request) {
 	const body = await req.text();
 	const signature = req.headers.get("stripe-signature");
 	const secret = process.env.STRIPE_WEBHOOK_SECRET!;
-	const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2024-06-20" });
+	const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2025-10-29.clover" });
 
 	let event: Stripe.Event;
 	try {
@@ -19,22 +19,51 @@ export async function POST(req: Request) {
 
 	if (event.type === "checkout.session.completed") {
 		const session = event.data.object as Stripe.Checkout.Session;
-		const userId = (session.metadata as any)?.user_id as string | undefined;
+		const metadata = session.metadata as any;
+		const userId = metadata?.user_id as string | undefined;
+		const sessionId = metadata?.session_id as string | undefined;
+		const customerEmail = session.customer_email || session.customer_details?.email;
+
+		// Use service role client to bypass RLS for order creation
+		const supabase = getSupabaseServiceClient();
+
+		let cartId: string | null = null;
 		if (userId) {
-			const supabase = await getSupabaseServerClient();
-			// read cart items at the time of completion
-			const { data: items } = await supabase
-				.from("cart_items")
-				.select("quantity, product:products(id, name, price_cents)")
-				.eq("cart_user_id", userId);
+			// Authenticated user
+			const { data: cart } = await supabase
+				.from("carts")
+				.select("id")
+				.eq("user_id", userId)
+				.maybeSingle();
+			cartId = cart?.id || null;
+		} else if (sessionId) {
+			// Guest user
+			const { data: cart } = await supabase
+				.from("carts")
+				.select("id")
+				.eq("session_id", sessionId)
+				.maybeSingle();
+			cartId = cart?.id || null;
+		}
 
-			const amountCents = (items ?? []).reduce((sum: number, it: any) => sum + it.quantity * it.product.price_cents, 0);
+		if (!cartId) {
+			return NextResponse.json({ received: true, error: "Cart not found" });
+		}
 
-			// create order
+		const { data: items } = await supabase
+			.from("cart_items")
+			.select("quantity, product:products(id, name, price_cents)")
+			.eq("cart_id", cartId);
+
+		if (items && items.length > 0) {
+			const amountCents = items.reduce((sum: number, it: any) => sum + it.quantity * it.product.price_cents, 0);
+
+			// Create order (use service role to bypass RLS)
 			const { data: order } = await supabase
 				.from("orders")
 				.insert({
-					user_id: userId,
+					user_id: userId || null,
+					guest_email: userId ? null : customerEmail || null,
 					status: "paid",
 					stripe_payment_intent: session.payment_intent as string,
 					amount_cents: amountCents,
@@ -42,7 +71,7 @@ export async function POST(req: Request) {
 				.select("id")
 				.single();
 
-			if (order && items && items.length > 0) {
+			if (order) {
 				await supabase.from("order_items").insert(
 					items.map((it: any) => ({
 						order_id: order.id,
@@ -51,8 +80,9 @@ export async function POST(req: Request) {
 						unit_price_cents: it.product.price_cents,
 					}))
 				);
-				// clear cart
-				await supabase.from("cart_items").delete().eq("cart_user_id", userId);
+
+				// Clear cart
+				await supabase.from("cart_items").delete().eq("cart_id", cartId);
 			}
 		}
 	}
