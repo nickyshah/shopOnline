@@ -22,6 +22,11 @@ export async function POST(req: Request) {
 		const metadata = session.metadata as any;
 		const userId = metadata?.user_id as string | undefined;
 		const sessionId = metadata?.session_id as string | undefined;
+		const couponId = metadata?.coupon_id as string | undefined;
+		const giftCardId = metadata?.gift_card_id as string | undefined;
+		const giftCardAmountCents = metadata?.gift_card_amount_cents
+			? parseInt(metadata.gift_card_amount_cents)
+			: 0;
 		const customerEmail = session.customer_email || session.customer_details?.email;
 
 		// Use service role client to bypass RLS for order creation
@@ -56,13 +61,20 @@ export async function POST(req: Request) {
 			.eq("cart_id", cartId);
 
 		if (items && items.length > 0) {
-			const amountCents = items.reduce((sum: number, it: any) => sum + it.quantity * it.product.price_cents, 0);
+			// Calculate subtotal from items
+			const subtotalCents = items.reduce((sum: number, it: any) => sum + it.quantity * it.product.price_cents, 0);
+			
+			// Get final amount from Stripe session (which includes discounts)
+			const finalAmountCents = session.amount_total || subtotalCents;
 
 			console.log("[Webhook] Creating order:", {
 				userId: userId || "guest",
 				customerEmail: customerEmail || "none",
-				amountCents,
+				subtotalCents,
+				finalAmountCents,
 				itemsCount: items.length,
+				hasCoupon: !!couponId,
+				hasGiftCard: !!giftCardId,
 			});
 
 			// Create order (use service role to bypass RLS)
@@ -73,7 +85,7 @@ export async function POST(req: Request) {
 					guest_email: userId ? null : customerEmail || null,
 					status: "paid",
 					stripe_payment_intent: session.payment_intent as string,
-					amount_cents: amountCents,
+					amount_cents: finalAmountCents,
 				})
 				.select("id")
 				.single();
@@ -116,6 +128,82 @@ export async function POST(req: Request) {
 				// Optionally delete the cart itself (optional, but keeps DB clean)
 				// Note: We keep the cart record as it might be useful for history
 				// The cart can be reused for future shopping sessions
+
+				// Track coupon usage (for both authenticated and guest users)
+				if (couponId) {
+					try {
+						// Record coupon usage (user_id can be null for guests)
+						await supabase.from("coupon_usage").insert({
+							coupon_id: couponId,
+							user_id: userId || null,
+							order_id: order.id,
+						});
+
+						// Increment usage count
+						await supabase.rpc("increment", {
+							table_name: "coupons",
+							column_name: "usage_count",
+							row_id: couponId,
+							increment_value: 1,
+						}).catch(() => {
+							// Fallback if RPC doesn't exist
+							const { data: coupon } = await supabase
+								.from("coupons")
+								.select("usage_count")
+								.eq("id", couponId)
+								.single();
+							
+							if (coupon) {
+								await supabase
+									.from("coupons")
+									.update({ usage_count: (coupon.usage_count || 0) + 1 })
+									.eq("id", couponId);
+							}
+						});
+
+						console.log("[Webhook] Coupon usage tracked:", couponId);
+					} catch (couponError) {
+						console.error("[Webhook] Error tracking coupon usage:", couponError);
+					}
+				}
+
+				// Process gift card transaction
+				if (giftCardId && giftCardAmountCents > 0) {
+					try {
+						// Get current gift card balance
+						const { data: giftCard } = await supabase
+							.from("gift_cards")
+							.select("remaining_amount_cents")
+							.eq("id", giftCardId)
+							.single();
+
+						if (giftCard) {
+							const newBalance = Math.max(0, giftCard.remaining_amount_cents - giftCardAmountCents);
+
+							// Update gift card balance
+							await supabase
+								.from("gift_cards")
+								.update({ remaining_amount_cents: newBalance })
+								.eq("id", giftCardId);
+
+							// Record transaction
+							await supabase.from("gift_card_transactions").insert({
+								gift_card_id: giftCardId,
+								order_id: order.id,
+								amount_cents: giftCardAmountCents,
+								transaction_type: "redeemed",
+							});
+
+							console.log("[Webhook] Gift card transaction processed:", {
+								giftCardId,
+								amount: giftCardAmountCents,
+								newBalance,
+							});
+						}
+					} catch (giftCardError) {
+						console.error("[Webhook] Error processing gift card transaction:", giftCardError);
+					}
+				}
 
 				console.log("[Webhook] Order processing completed for order:", order.id);
 			}

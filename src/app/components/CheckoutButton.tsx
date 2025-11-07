@@ -3,7 +3,12 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 
-export default function CheckoutButton() {
+type CheckoutButtonProps = {
+	couponId?: string;
+	giftCardId?: string;
+};
+
+export default function CheckoutButton({ couponId, giftCardId }: CheckoutButtonProps) {
 	const [loading, setLoading] = useState(false);
 
 	async function handleCheckout(e: React.FormEvent<HTMLFormElement>) {
@@ -15,7 +20,12 @@ export default function CheckoutButton() {
 				method: "POST",
 				headers: {
 					"Accept": "application/json",
+					"Content-Type": "application/json",
 				},
+				body: JSON.stringify({
+					coupon_id: couponId,
+					gift_card_id: giftCardId,
+				}),
 			});
 
 			if (!response.ok) {

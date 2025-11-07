@@ -93,9 +93,14 @@ export default async function Footer() {
 								</Link>
 							</li>
 							<li>
-								<a href="mailto:support@rawnode.com" className="text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+								<Link href="/contact" className="text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
 									Contact Us
-								</a>
+								</Link>
+							</li>
+							<li>
+								<Link href="/about" className="text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+									About Us
+								</Link>
 							</li>
 							<li>
 								<a href="#" className="text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">

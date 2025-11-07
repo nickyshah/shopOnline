@@ -1,6 +1,6 @@
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getCartSessionId } from "@/lib/cart";
-import CheckoutButton from "../components/CheckoutButton";
+import CartClient from "./CartClient";
 
 export default async function CartPage() {
 	const supabase = await getSupabaseServerClient();
@@ -19,7 +19,7 @@ export default async function CartPage() {
 		if (cart) {
 			const { data } = await supabase
 				.from("cart_items")
-				.select("id, quantity, product:products(id, name, price_cents, image_url)")
+				.select("id, quantity, product:products(id, name, price_cents, image_url, category_id)")
 				.eq("cart_id", cart.id);
 			items = data || [];
 		}
@@ -36,7 +36,7 @@ export default async function CartPage() {
 			if (cart) {
 				const { data } = await supabase
 					.from("cart_items")
-					.select("id, quantity, product:products(id, name, price_cents, image_url)")
+					.select("id, quantity, product:products(id, name, price_cents, image_url, category_id)")
 					.eq("cart_id", cart.id);
 				items = data || [];
 			}
@@ -75,49 +75,7 @@ export default async function CartPage() {
 						</a>
 					</div>
 				) : (
-					<>
-						{/* Cart Items */}
-						<div className="space-y-4 mb-8">
-							{items.map((it: any) => (
-								<div
-									key={it.id}
-									className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl border border-white/30 dark:border-white/20 shadow-xl p-6 flex items-center justify-between hover:shadow-2xl transition-all duration-300"
-								>
-									<div className="flex items-center gap-4 flex-1">
-										{it.product.image_url && (
-											<img
-												src={it.product.image_url}
-												alt={it.product.name}
-												className="w-20 h-20 object-cover rounded-xl"
-											/>
-										)}
-										<div className="flex-1">
-											<div className="font-bold text-lg text-gray-900 dark:text-white mb-1">
-												{it.product.name}
-											</div>
-											<div className="text-sm text-gray-600 dark:text-gray-400">
-												Quantity: {it.quantity}
-											</div>
-										</div>
-									</div>
-									<div className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-										${((it.product.price_cents * it.quantity) / 100).toFixed(2)}
-									</div>
-								</div>
-							))}
-						</div>
-
-						{/* Total and Checkout */}
-						<div className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-3xl border border-white/30 dark:border-white/20 shadow-xl p-8">
-							<div className="flex items-center justify-between mb-6">
-								<div className="text-2xl font-bold text-gray-900 dark:text-white">Total</div>
-								<div className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-									${(totalCents / 100).toFixed(2)}
-								</div>
-							</div>
-							<CheckoutButton />
-						</div>
-					</>
+					<CartClient items={items} totalCents={totalCents} />
 				)}
 			</div>
 		</div>

@@ -49,6 +49,24 @@ export default function AdminNav() {
 				>
 					Users
 				</Link>
+				<Link
+					href="/admin/aliexpress"
+					className={isActive("/admin/aliexpress") ? activeClass : inactiveClass}
+				>
+					AliExpress
+				</Link>
+				<Link
+					href="/admin/coupons"
+					className={isActive("/admin/coupons") ? activeClass : inactiveClass}
+				>
+					Coupons
+				</Link>
+				<Link
+					href="/admin/gift-cards"
+					className={isActive("/admin/gift-cards") ? activeClass : inactiveClass}
+				>
+					Gift Cards
+				</Link>
 			</div>
 		</nav>
 	);

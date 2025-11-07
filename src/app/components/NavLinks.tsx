@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { signOutAction } from "../actions";
-import toast from "react-hot-toast";
+import ProfileDropdown from "./ProfileDropdown";
 
 type NavLinksProps = {
 	user: any;
@@ -22,26 +21,6 @@ export default function NavLinks({ user, userRole, cartItemCount }: NavLinksProp
 		return pathname.startsWith(path);
 	};
 
-	async function handleSignOut(e: React.FormEvent<HTMLFormElement>) {
-		e.preventDefault();
-		try {
-			await signOutAction();
-			// signOutAction uses redirect() which throws a NEXT_REDIRECT error
-			// This is expected behavior, so we don't show an error
-			// The redirect will happen automatically
-		} catch (error: any) {
-			// Next.js redirect() throws a special error that we should ignore
-			// Check if it's a redirect error (NEXT_REDIRECT)
-			if (error?.digest?.startsWith("NEXT_REDIRECT") || error?.message?.includes("NEXT_REDIRECT")) {
-				// This is expected - redirect is happening
-				toast.success("Signed out successfully!");
-				return;
-			}
-			// Only show error for actual failures
-			console.error("Sign out error:", error);
-			toast.error("Failed to sign out");
-		}
-	}
 
 	const activeClass = "px-4 py-2 text-sm font-semibold bg-white text-gray-900 rounded-full shadow-sm transition-all duration-300";
 	const inactiveClass = "px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-white/20 dark:hover:bg-white/10 rounded-xl transition-all duration-300 hover:scale-105";
@@ -87,6 +66,18 @@ export default function NavLinks({ user, userRole, cartItemCount }: NavLinksProp
 					Orders
 				</Link>
 			)}
+			<Link
+				href="/about"
+				className={isActive("/about") ? activeClass : inactiveClass}
+			>
+				About
+			</Link>
+			<Link
+				href="/contact"
+				className={isActive("/contact") ? activeClass : inactiveClass}
+			>
+				Contact
+			</Link>
 			{userRole === "admin" && (
 				<Link
 					href="/admin"
@@ -96,14 +87,7 @@ export default function NavLinks({ user, userRole, cartItemCount }: NavLinksProp
 				</Link>
 			)}
 			{user ? (
-				<form onSubmit={handleSignOut} className="inline-block">
-					<button
-						type="submit"
-						className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-white/20 dark:hover:bg-white/10 rounded-xl transition-all duration-300 hover:scale-105"
-					>
-						Sign out
-					</button>
-				</form>
+				<ProfileDropdown user={user} userRole={userRole} />
 			) : (
 				<Link
 					href="/login"
