@@ -11,7 +11,7 @@ export async function POST(req: Request) {
 
 		// Parse request body
 		const body = await req.json().catch(() => ({}));
-		const { coupon_id, gift_card_id } = body;
+		const { coupon_id, gift_card_id, customer } = body;
 
 		// Validate Stripe secret key
 		const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -164,6 +164,21 @@ export async function POST(req: Request) {
 		metadata.gift_card_id = gift_card_id;
 		metadata.gift_card_amount_cents = giftCardAmount.toString();
 	}
+	
+	// Store customer information in metadata for webhook
+	if (customer) {
+		metadata.customer_email = customer.email || "";
+		metadata.customer_name = customer.name || "";
+		metadata.customer_phone = customer.phone || "";
+		if (customer.address) {
+			metadata.shipping_address_line1 = customer.address.line1 || "";
+			metadata.shipping_address_line2 = customer.address.line2 || "";
+			metadata.shipping_city = customer.address.city || "";
+			metadata.shipping_state = customer.address.state || "";
+			metadata.shipping_postal_code = customer.address.postal_code || "";
+			metadata.shipping_country = customer.address.country || "";
+		}
+	}
 
 		console.log("[Checkout] Creating Stripe session with:", {
 			lineItemsCount: lineItems.length,
@@ -185,6 +200,20 @@ export async function POST(req: Request) {
 			cancel_url: `${origin}/cart`,
 			metadata,
 		};
+
+		// Add customer information if provided
+		if (customer) {
+			sessionParams.customer_email = customer.email;
+			
+			// Pre-fill shipping address if provided
+			if (customer.address) {
+				sessionParams.shipping_address_collection = {
+					allowed_countries: [customer.address.country || "US"],
+				};
+				// Note: Stripe Checkout doesn't support pre-filling addresses via API
+				// The address will be collected/confirmed during checkout
+			}
+		}
 
 		// If we have a Stripe coupon ID, use it (but we'll still track manually)
 		if (couponData?.stripe_coupon_id) {

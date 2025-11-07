@@ -27,7 +27,19 @@ export async function POST(req: Request) {
 		const giftCardAmountCents = metadata?.gift_card_amount_cents
 			? parseInt(metadata.gift_card_amount_cents)
 			: 0;
-		const customerEmail = session.customer_email || session.customer_details?.email;
+		const customerEmail = session.customer_email || session.customer_details?.email || metadata?.customer_email;
+		
+		// Extract customer information from metadata (if provided from checkout form)
+		const customerName = metadata?.customer_name || session.customer_details?.name;
+		const customerPhone = metadata?.customer_phone;
+		const shippingAddress = {
+			line1: metadata?.shipping_address_line1 || session.shipping_details?.address?.line1,
+			line2: metadata?.shipping_address_line2 || session.shipping_details?.address?.line2,
+			city: metadata?.shipping_city || session.shipping_details?.address?.city,
+			state: metadata?.shipping_state || session.shipping_details?.address?.state,
+			postal_code: metadata?.shipping_postal_code || session.shipping_details?.address?.postal_code,
+			country: metadata?.shipping_country || session.shipping_details?.address?.country,
+		};
 
 		// Use service role client to bypass RLS for order creation
 		const supabase = getSupabaseServiceClient();
@@ -86,6 +98,14 @@ export async function POST(req: Request) {
 					status: "paid",
 					stripe_payment_intent: session.payment_intent as string,
 					amount_cents: finalAmountCents,
+					shipping_name: customerName || null,
+					phone: customerPhone || null,
+					shipping_address_line1: shippingAddress.line1 || null,
+					shipping_address_line2: shippingAddress.line2 || null,
+					shipping_city: shippingAddress.city || null,
+					shipping_state: shippingAddress.state || null,
+					shipping_postal_code: shippingAddress.postal_code || null,
+					shipping_country: shippingAddress.country || null,
 				})
 				.select("id")
 				.single();
