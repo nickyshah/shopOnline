@@ -16,7 +16,20 @@ export default async function OrdersPage() {
 
 	if (error) {
 		console.error("[Orders] Error fetching orders:", error);
+		console.error("[Orders] Error details:", {
+			message: error.message,
+			code: error.code,
+			details: error.details,
+			hint: error.hint,
+			userId: auth.user.id,
+		});
 	}
+	
+	console.log("[Orders] Fetched orders for user:", {
+		userId: auth.user.id,
+		count: orders?.length || 0,
+		hasError: !!error,
+	});
 
 	return (
 		<div className="min-h-screen">

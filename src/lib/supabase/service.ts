@@ -22,6 +22,7 @@ function validateEnvVars() {
 }
 
 // Service role client for admin operations (bypasses RLS)
+// The service role key automatically bypasses RLS policies
 export function getSupabaseServiceClient() {
 	const { supabaseUrl, serviceRoleKey } = validateEnvVars();
 	return createClient(supabaseUrl, serviceRoleKey, {
@@ -29,6 +30,7 @@ export function getSupabaseServiceClient() {
 			autoRefreshToken: false,
 			persistSession: false,
 		},
+		// Service role key automatically bypasses RLS, no additional config needed
 	});
 }
 

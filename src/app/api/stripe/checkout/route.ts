@@ -110,41 +110,42 @@ export async function POST(req: Request) {
 	// Calculate final total
 	const finalTotalCents = Math.max(0, subtotalCents - discountAmount - giftCardAmount);
 
-	// Build line items - if there's a discount, we need to add it as a negative line item
-	const lineItems = items.map((it: any) => ({
-		price_data: {
-			currency: "usd",
-			product_data: { name: it.product.name },
-			unit_amount: it.product.price_cents,
-		},
-		quantity: it.quantity,
-	}));
+	// Calculate discount ratio to apply proportionally to line items
+	// This ensures the total matches the final amount without using negative line items
+	const totalDiscount = discountAmount + giftCardAmount;
+	const discountRatio = subtotalCents > 0 ? finalTotalCents / subtotalCents : 1;
 
-	// Add discount as a negative line item if applicable
-	if (discountAmount > 0) {
-		lineItems.push({
+	// Build line items with adjusted prices to account for discounts
+	// Stripe doesn't allow negative unit_amount, so we adjust prices proportionally
+	const lineItems = items.map((it: any) => {
+		const originalItemTotal = it.quantity * it.product.price_cents;
+		const adjustedItemTotal = Math.round(originalItemTotal * discountRatio);
+		const adjustedUnitAmount = Math.round(adjustedItemTotal / it.quantity);
+		
+		return {
 			price_data: {
 				currency: "usd",
-				product_data: {
-					name: couponData?.description || `Discount: ${couponData?.code || "Coupon"}`,
-				},
-				unit_amount: -discountAmount,
+				product_data: { name: it.product.name },
+				unit_amount: Math.max(0, adjustedUnitAmount), // Ensure non-negative
 			},
-			quantity: 1,
-		});
-	}
+			quantity: it.quantity,
+		};
+	});
 
-	if (giftCardAmount > 0) {
-		lineItems.push({
-			price_data: {
-				currency: "usd",
-				product_data: {
-					name: `Gift Card: ${giftCardData?.code || "Gift Card"}`,
-				},
-				unit_amount: -giftCardAmount,
-			},
-			quantity: 1,
-		});
+	// If the proportional adjustment doesn't exactly match due to rounding,
+	// adjust the last item to make the total exact
+	if (totalDiscount > 0 && lineItems.length > 0) {
+		const calculatedTotal = lineItems.reduce((sum: number, item: any) => {
+			return sum + (item.price_data.unit_amount * item.quantity);
+		}, 0);
+		
+		const difference = finalTotalCents - calculatedTotal;
+		if (difference !== 0 && Math.abs(difference) < finalTotalCents) {
+			// Adjust the last item to account for rounding differences
+			const lastItem = lineItems[lineItems.length - 1];
+			const adjustment = Math.round(difference / lastItem.quantity);
+			lastItem.price_data.unit_amount = Math.max(0, lastItem.price_data.unit_amount + adjustment);
+		}
 	}
 
 	// Get origin from request URL
@@ -159,11 +160,14 @@ export async function POST(req: Request) {
 	}
 	if (coupon_id) {
 		metadata.coupon_id = coupon_id;
+		metadata.discount_amount_cents = discountAmount.toString();
 	}
 	if (gift_card_id) {
 		metadata.gift_card_id = gift_card_id;
 		metadata.gift_card_amount_cents = giftCardAmount.toString();
 	}
+	// Store original subtotal for reference
+	metadata.subtotal_cents = subtotalCents.toString();
 	
 	// Store customer information in metadata for webhook
 	if (customer) {

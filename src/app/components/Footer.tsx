@@ -93,6 +93,11 @@ export default async function Footer() {
 								</Link>
 							</li>
 							<li>
+								<Link href="/orders/track" className="text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+									Track Order
+								</Link>
+							</li>
+							<li>
 								<Link href="/contact" className="text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
 									Contact Us
 								</Link>

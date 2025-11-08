@@ -73,10 +73,12 @@ export default function CheckoutPage() {
 				const contentType = response.headers.get("content-type");
 				if (contentType && contentType.includes("application/json")) {
 					const data = await response.json().catch(() => ({}));
-					throw new Error(data.error || `HTTP ${response.status}: Failed to proceed to checkout`);
+					const statusText = String(response.status || "Unknown");
+					throw new Error(data.error || `HTTP ${statusText}: Failed to proceed to checkout`);
 				} else {
 					const text = await response.text().catch(() => "");
-					throw new Error(text || `HTTP ${response.status}: Failed to proceed to checkout`);
+					const statusText = String(response.status || "Unknown");
+					throw new Error(text || `HTTP ${statusText}: Failed to proceed to checkout`);
 				}
 			}
 
