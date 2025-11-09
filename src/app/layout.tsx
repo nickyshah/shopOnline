@@ -5,6 +5,7 @@ import "./globals.css";
 import Footer from "./components/Footer";
 import NavLinks from "./components/NavLinks";
 import Toaster from "./components/Toaster";
+import NewsletterModal from "./components/NewsletterModal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +37,7 @@ export default function RootLayout({
         <main className="flex flex-col min-h-screen">{children}</main>
         <Footer />
         <Toaster />
+        <NewsletterModal />
       </body>
     </html>
   );
