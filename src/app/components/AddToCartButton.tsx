@@ -47,17 +47,40 @@ export default function AddToCartButton({ productId, productName, defaultQuantit
 		}
 	}
 
+	const handleDecrease = () => {
+		if (quantity > 1) {
+			setQuantity(quantity - 1);
+		}
+	};
+
+	const handleIncrease = () => {
+		setQuantity(quantity + 1);
+	};
+
 	return (
 		<form onSubmit={handleSubmit} className="flex items-center gap-4">
-			<input
-				type="number"
-				name="quantity"
-				min={1}
-				value={quantity}
-				onChange={(e) => setQuantity(Number(e.target.value))}
-				className="w-24 px-4 py-3 bg-white/20 dark:bg-white/10 backdrop-blur-sm rounded-xl border border-white/30 dark:border-white/20 text-gray-900 dark:text-white font-semibold text-center"
-				disabled={loading}
-			/>
+			{/* Quantity Selector */}
+			<div className="flex items-center gap-2">
+				<button
+					type="button"
+					onClick={handleDecrease}
+					disabled={quantity <= 1 || loading}
+					className="w-10 h-10 flex items-center justify-center bg-white/20 dark:bg-white/10 backdrop-blur-sm rounded-xl border border-white/30 dark:border-white/20 text-gray-900 dark:text-white font-semibold hover:bg-white/30 dark:hover:bg-white/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					−
+				</button>
+				<div className="w-16 h-10 flex items-center justify-center bg-white/30 dark:bg-white/10 backdrop-blur-sm rounded-xl border border-white/30 dark:border-white/20 text-gray-900 dark:text-white font-semibold">
+					{quantity}
+				</div>
+				<button
+					type="button"
+					onClick={handleIncrease}
+					disabled={loading}
+					className="w-10 h-10 flex items-center justify-center bg-white/20 dark:bg-white/10 backdrop-blur-sm rounded-xl border border-white/30 dark:border-white/20 text-gray-900 dark:text-white font-semibold hover:bg-white/30 dark:hover:bg-white/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					+
+				</button>
+			</div>
 			<button
 				type="submit"
 				disabled={loading}
